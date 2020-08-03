@@ -1143,7 +1143,7 @@ activate (GApplication *app)
                                        NULL,
                                        NULL);
   filter_model = gtk_filter_list_model_new (G_LIST_MODEL (treemodel), NULL);
-  filter = gtk_custom_filter_new ((GtkCustomFilterFunc)demo_filter_by_name, filter_model, NULL);
+  filter = GTK_FILTER (gtk_custom_filter_new ((GtkCustomFilterFunc)demo_filter_by_name, filter_model, NULL));
   gtk_filter_list_model_set_filter (filter_model, filter);
   g_object_unref (filter);
   search_entry = GTK_WIDGET (gtk_builder_get_object (builder, "search-entry"));

@@ -1,4 +1,4 @@
-/* Layout Manager
+/* Layout Manager/Transition
  *
  * This examples shows a simple example of a custom layout manager
  * and a widget using it. The layout manager places the children

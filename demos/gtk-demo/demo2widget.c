@@ -32,7 +32,7 @@ transition (GtkWidget     *widget,
   gint64 now = g_get_monotonic_time ();
 
   gtk_widget_queue_allocate (widget);
-  demo2_layout_set_position (demo2_layout, (now - self->start_time) / (double)G_TIME_SPAN_SECOND);
+  demo2_layout_set_position (demo2_layout, (now - self->start_time) * 30.0 / ((double)G_TIME_SPAN_SECOND));
 
   return G_SOURCE_CONTINUE;
 }

@@ -1,5 +1,5 @@
 #include "demo2layout.h"
-
+#include "four_point_transform.h"
 
 struct _Demo2Layout
 {
@@ -49,6 +49,14 @@ demo2_layout_measure (GtkLayoutManager *layout_manager,
   *natural = 3 * natural_size;
 }
 
+
+#define RADIANS(angle) ((angle)*M_PI/180.0);
+
+/* Spherical coordinates */
+#define SX(r,t,p) ((r) * sin (t) * cos (p))
+#define SZ(r,t,p) ((r) * sin (t) * sin (p))
+#define SY(r,t,p) ((r) * cos (t))
+
 static void
 demo2_layout_allocate (GtkLayoutManager *layout_manager,
                        GtkWidget        *widget,
@@ -56,49 +64,61 @@ demo2_layout_allocate (GtkLayoutManager *layout_manager,
                        int               height,
                        int               baseline)
 {
-  Demo2Layout *self = DEMO2_LAYOUT (layout_manager);
   GtkWidget *child;
-  float t = fmodf (self->position, 4.0);
-  int x, y;
+  GtkRequisition child_req;
+  int i, j, k;
+  float x0, y0;
+  float w, h;
+  graphene_point3d_t p1, p2, p3, p4;
+  graphene_point3d_t q1, q2, q3, q4;
+  double t_1, t_2, p_1, p_2;
+  double r;
+  graphene_matrix_t m;
+  GskTransform *transform;
+  double offset = DEMO2_LAYOUT (layout_manager)->position;
 
-  for (child = gtk_widget_get_first_child (widget);
+  gtk_widget_get_preferred_size (gtk_widget_get_first_child (widget), &child_req, NULL);
+  w = child_req.width;
+  h = child_req.height;
+
+  r = 300;
+  x0 = y0 = 300;
+
+  for (child = gtk_widget_get_first_child (widget), i = 0;
        child != NULL;
-       child = gtk_widget_get_next_sibling (child))
+       child = gtk_widget_get_next_sibling (child), i++)
     {
-      GtkRequisition child_req;
+      j = i / 36;
+      k = i % 36;
 
-      if (!gtk_widget_should_layout (child))
-        continue;
+      graphene_point3d_init (&p1, 0., 0., 1);
+      graphene_point3d_init (&p2, w, 0., 1);
+      graphene_point3d_init (&p3, 0., h, 1);
+      graphene_point3d_init (&p4, w, h, 1);
 
-      gtk_widget_get_preferred_size (child, &child_req, NULL);
+      t_1 = RADIANS (10 * j);
+      t_2 = RADIANS (10 * (j + 1));
+      p_1 = RADIANS (offset + 10 * k);
+      p_2 = RADIANS (offset + 10 * (k + 1));
 
-      if (t < 1.0)
-        {
-          x = t * (width - child_req.width);
-          y = 0;
-        }
-      else if (t < 2.0)
-        {
-          t -= 1.0;
-          x = (1.0 - t) * (width - child_req.width);
-          y = t * (height - child_req.height);
-        }
-      else if (t < 3.0)
-        {
-          t -= 2.0;
-          x = t * (width - child_req.width);
-          y = height - child_req.height;
-        }
-      else
-        {
-          t -= 3.0;
-          x = (1.0 - t) * (width - child_req.width);
-          y = (1.0 - t) * (height - child_req.height);
-        }
+      graphene_point3d_init (&q1, x0 + SX (r, t_1, p_1), y0 + SY (r, t_1, p_1), SZ (r, t_1, p_1));
+      graphene_point3d_init (&q2, x0 + SX (r, t_2, p_1), y0 + SY (r, t_2, p_1), SZ (r, t_2, p_1));
+      graphene_point3d_init (&q3, x0 + SX (r, t_1, p_2), y0 + SY (r, t_1, p_2), SZ (r, t_1, p_2));
+      graphene_point3d_init (&q4, x0 + SX (r, t_2, p_2), y0 + SY (r, t_2, p_2), SZ (r, t_2, p_2));
 
-      gtk_widget_size_allocate (child,
-                                &(const GtkAllocation){ x, y, child_req.width, child_req.height},
-                                -1);
+      perspective_3d (&p1, &p2, &p3, &p4,
+                      &q1, &q2, &q3, &q4,
+                      &m);
+
+      transform = gsk_transform_matrix (NULL, &m);
+
+      /* Since our matrix was built for transforming points with z = 1,
+       * prepend a translation to the z = 1 plane.
+       */
+      transform = gsk_transform_translate_3d (transform,
+                                              &GRAPHENE_POINT3D_INIT (0, 0, 1));
+
+      gtk_widget_allocate (child, w, h, -1, transform);
     }
 }
 

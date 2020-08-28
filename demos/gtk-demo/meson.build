@@ -106,6 +106,8 @@ extra_demo_sources = files(['main.c',
                             'demolayout.c',
                             'demowidget.c',
                             'demo2layout.c',
+                            'singular_value_decomposition.c',
+                            'four_point_transform.c',
                             'demo2widget.c'])
 
 if harfbuzz_dep.found() and pangoft_dep.found()

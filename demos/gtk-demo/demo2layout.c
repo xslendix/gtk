@@ -6,6 +6,7 @@ struct _Demo2Layout
   GtkLayoutManager parent_instance;
 
   float position;
+  float offset;
 };
 
 struct _Demo2LayoutClass
@@ -57,6 +58,15 @@ demo2_layout_measure (GtkLayoutManager *layout_manager,
 #define SZ(r,t,p) ((r) * sin (t) * sin (p))
 #define SY(r,t,p) ((r) * cos (t))
 
+static double
+map_offset (double x)
+{
+  if (x == 180)
+    return x;
+
+  return fmod (x, 180.0);
+}
+
 static void
 demo2_layout_allocate (GtkLayoutManager *layout_manager,
                        GtkWidget        *widget,
@@ -75,7 +85,8 @@ demo2_layout_allocate (GtkLayoutManager *layout_manager,
   double r;
   graphene_matrix_t m;
   GskTransform *transform;
-  double offset = DEMO2_LAYOUT (layout_manager)->position;
+  double position = DEMO2_LAYOUT (layout_manager)->position;
+  double offset = DEMO2_LAYOUT (layout_manager)->offset;
 
   gtk_widget_get_preferred_size (gtk_widget_get_first_child (widget), &child_req, NULL);
   w = child_req.width;
@@ -96,10 +107,13 @@ demo2_layout_allocate (GtkLayoutManager *layout_manager,
       graphene_point3d_init (&p3, 0., h, 1);
       graphene_point3d_init (&p4, w, h, 1);
 
-      t_1 = RADIANS (10 * j);
-      t_2 = RADIANS (10 * (j + 1));
-      p_1 = RADIANS (offset + 10 * k);
-      p_2 = RADIANS (offset + 10 * (k + 1));
+      t_1 = RADIANS (map_offset (offset + 10 * j));
+      t_2 = RADIANS (map_offset (offset + 10 * (j + 1)));
+      p_1 = RADIANS (position + 10 * k);
+      p_2 = RADIANS (position + 10 * (k + 1));
+
+      if (t_2 < t_1)
+        continue;
 
       if (SZ (r, t_1, p_1) > 0)
         continue;
@@ -158,4 +172,23 @@ demo2_layout_set_position (Demo2Layout *layout,
                            float        position)
 {
   layout->position = position;
+}
+
+float
+demo2_layout_get_position (Demo2Layout *layout)
+{
+  return layout->position;
+}
+
+void
+demo2_layout_set_offset (Demo2Layout *layout,
+                         float        offset)
+{
+  layout->offset = offset;
+}
+
+float
+demo2_layout_get_offset (Demo2Layout *layout)
+{
+  return layout->offset;
 }

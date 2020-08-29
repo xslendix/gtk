@@ -179,7 +179,7 @@ do_layoutmanager2 (GtkWidget *parent)
 
       window = gtk_window_new ();
       gtk_window_set_title (GTK_WINDOW (window), "Transformation");
-      gtk_window_set_default_size (GTK_WINDOW (window), 200, 100);
+      gtk_window_set_default_size (GTK_WINDOW (window), 600, 660);
       g_object_add_weak_pointer (G_OBJECT (window), (gpointer *)&window);
 
       widget = demo2_widget_new ();

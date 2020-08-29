@@ -8,7 +8,12 @@ struct _Demo2Widget
   GtkWidget parent_instance;
 
   gint64 start_time; /* time the transition started */
-  guint tick_id;     /* our tick cb */
+  gint64 end_time;
+  float start_position;
+  float end_position;
+  float start_offset;
+  float end_offset;
+  gboolean animating;
 };
 
 struct _Demo2WidgetClass
@@ -18,30 +23,10 @@ struct _Demo2WidgetClass
 
 G_DEFINE_TYPE (Demo2Widget, demo2_widget, GTK_TYPE_WIDGET)
 
-/* The widget is controlling the transition by calling
- * demo_layout_set_position() in a tick callback.
- */
-
-static gboolean
-transition (GtkWidget     *widget,
-            GdkFrameClock *frame_clock,
-            gpointer       data)
-{
-  Demo2Widget *self = DEMO2_WIDGET (widget);
-  Demo2Layout *demo2_layout = DEMO2_LAYOUT (gtk_widget_get_layout_manager (widget));
-  gint64 now = g_get_monotonic_time ();
-
-  gtk_widget_queue_allocate (widget);
-  demo2_layout_set_position (demo2_layout, (now - self->start_time) * 30.0 / ((double)G_TIME_SPAN_SECOND));
-
-  return G_SOURCE_CONTINUE;
-}
-
 static void
 demo2_widget_init (Demo2Widget *self)
 {
-  self->start_time = g_get_monotonic_time ();
-  self->tick_id = gtk_widget_add_tick_callback (GTK_WIDGET (self), transition, NULL, NULL);
+  gtk_widget_set_focusable (GTK_WIDGET (self), TRUE);
 }
 
 static void
@@ -55,6 +40,78 @@ demo2_widget_dispose (GObject *object)
   G_OBJECT_CLASS (demo2_widget_parent_class)->dispose (object);
 }
 
+/* From clutter-easing.c, based on Robert Penner's
+ * infamous easing equations, MIT license.
+ */
+static double
+ease_out_cubic (double t)
+{
+  double p = t - 1;
+
+  return p * p * p + 1;
+}
+
+static gboolean
+update_position (GtkWidget     *widget,
+                 GdkFrameClock *clock,
+                 gpointer       data)
+{
+  Demo2Widget *self = DEMO2_WIDGET (widget);
+  Demo2Layout *layout = DEMO2_LAYOUT (gtk_widget_get_layout_manager (widget));
+  gint64 now;
+
+  now = gdk_frame_clock_get_frame_time (clock);
+
+  if (now < self->end_time)
+    {
+      double t;
+
+      t = (now - self->start_time) / (double) (self->end_time - self->start_time);
+
+      t = ease_out_cubic (t);
+
+      demo2_layout_set_position (layout, self->start_position + t * (self->end_position - self->start_position));
+      demo2_layout_set_offset (layout, self->start_offset + t * (self->end_offset - self->start_offset));
+      gtk_widget_queue_allocate (widget);
+
+      return G_SOURCE_CONTINUE;
+    }
+  else
+    {
+      self->animating = FALSE;
+
+      return G_SOURCE_REMOVE;
+    }
+}
+
+static void
+rotate_sphere (GtkWidget  *widget,
+               const char *action,
+               GVariant   *parameters)
+{
+  Demo2Widget *self = DEMO2_WIDGET (widget);
+  Demo2Layout *layout = DEMO2_LAYOUT (gtk_widget_get_layout_manager (widget));
+  GtkOrientation orientation;
+  int direction;
+
+  g_variant_get (parameters, "(ii)", &orientation, &direction);
+
+  self->end_position = self->start_position = demo2_layout_get_position (layout);
+  self->end_offset = self->start_offset = demo2_layout_get_offset (layout);
+  if (orientation == GTK_ORIENTATION_HORIZONTAL)
+    self->end_position += 10 * direction;
+  else
+    self->end_offset += 10 * direction;
+  self->start_time = g_get_monotonic_time ();
+  self->end_time = self->start_time + 0.5 * G_TIME_SPAN_SECOND;
+
+  if (!self->animating)
+    {
+      gtk_widget_add_tick_callback (widget, update_position, NULL, NULL);
+      self->animating = TRUE;
+    }
+}
+
 static void
 demo2_widget_class_init (Demo2WidgetClass *class)
 {
@@ -62,6 +119,13 @@ demo2_widget_class_init (Demo2WidgetClass *class)
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (class);
 
   object_class->dispose = demo2_widget_dispose;
+
+  gtk_widget_class_install_action (widget_class, "rotate", "(ii)", rotate_sphere);
+
+  gtk_widget_class_add_binding_action (widget_class, GDK_KEY_Left, 0, "rotate", "(ii)", GTK_ORIENTATION_HORIZONTAL, -1);
+  gtk_widget_class_add_binding_action (widget_class, GDK_KEY_Right, 0, "rotate", "(ii)", GTK_ORIENTATION_HORIZONTAL, 1);
+  gtk_widget_class_add_binding_action (widget_class, GDK_KEY_Up, 0, "rotate", "(ii)", GTK_ORIENTATION_VERTICAL, -1);
+  gtk_widget_class_add_binding_action (widget_class, GDK_KEY_Down, 0, "rotate", "(ii)", GTK_ORIENTATION_VERTICAL, 1);
 
   /* here is where we use our custom layout manager */
   gtk_widget_class_set_layout_manager_type (widget_class, DEMO2_TYPE_LAYOUT);

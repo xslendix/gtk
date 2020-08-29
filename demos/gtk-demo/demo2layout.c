@@ -101,6 +101,9 @@ demo2_layout_allocate (GtkLayoutManager *layout_manager,
       p_1 = RADIANS (offset + 10 * k);
       p_2 = RADIANS (offset + 10 * (k + 1));
 
+      if (SZ (r, t_1, p_1) > 0)
+        continue;
+
       graphene_point3d_init (&q1, x0 + SX (r, t_1, p_1), y0 + SY (r, t_1, p_1), SZ (r, t_1, p_1));
       graphene_point3d_init (&q2, x0 + SX (r, t_2, p_1), y0 + SY (r, t_2, p_1), SZ (r, t_2, p_1));
       graphene_point3d_init (&q3, x0 + SX (r, t_1, p_2), y0 + SY (r, t_1, p_2), SZ (r, t_1, p_2));
